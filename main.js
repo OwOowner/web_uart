@@ -61,20 +61,30 @@ class SerialMonitorPro {
     async scanPorts() {
         try {
             this.showNotification('正在扫描串口...', 'info');
-            
-            // 获取可用串口
-            const ports = await navigator.serial.getPorts();
-            
+
+            // 获取已授权的串口
+            let ports = await navigator.serial.getPorts();
+
+            // 如果没有已授权设备，主动请求用户授权
+            if (ports.length === 0) {
+                try {
+                    const port = await navigator.serial.requestPort();
+                    ports = [port];
+                } catch (e) {
+                    this.showNotification('用户未授权串口访问', 'warning');
+                }
+            }
+
             // 更新串口列表显示
             await this.updatePortList(ports);
-            
+
             // 如果没有检测到串口，显示提示
             if (ports.length === 0) {
                 this.showNotification('未检测到串口设备，请确保设备已连接并授权访问', 'warning');
             } else {
                 this.showNotification(`检测到 ${ports.length} 个串口设备`, 'success');
             }
-            
+
         } catch (error) {
             console.error('扫描串口时出错:', error);
             this.showNotification('扫描串口失败: ' + error.message, 'error');
