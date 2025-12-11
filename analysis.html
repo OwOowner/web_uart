@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据分析 - Serial Monitor Pro</title>
+    
+    <!-- 核心样式库 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Fira+Code:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- 核心JavaScript库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #0f3460;
+            --text-primary: #f1f2f6;
+            --text-secondary: #ddd;
+            --accent-green: #00ff88;
+            --accent-orange: #ff6b35;
+            --accent-red: #ff4757;
+            --accent-blue: #74b9ff;
+        }
+        
+        body {
+            font-family: 'Fira Code', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+        
+        .title-font {
+            font-family: 'Orbitron', monospace;
+        }
+        
+        .glass-effect {
+            background: rgba(22, 33, 62, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(116, 185, 255, 0.2);
+        }
+        
+        .tech-bg {
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(116, 185, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(0, 255, 136, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(255, 107, 53, 0.1) 0%, transparent 50%);
+        }
+        
+        .grid-overlay {
+            background-image: 
+                linear-gradient(rgba(116, 185, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(116, 185, 255, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        
+        .hover-lift {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .hover-lift:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .analysis-card {
+            background: linear-gradient(135deg, rgba(22, 33, 62, 0.9), rgba(15, 52, 96, 0.9));
+            border: 1px solid rgba(116, 185, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .analysis-card:hover {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.2);
+        }
+        
+        .metric-card {
+            background: rgba(22, 33, 62, 0.6);
+            border: 1px solid rgba(116, 185, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            border-color: var(--accent-blue);
+            background: rgba(22, 33, 62, 0.8);
+        }
+        
+        .scrollable {
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(116, 185, 255, 0.5) transparent;
+        }
+        
+        .scrollable::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .scrollable::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .scrollable::-webkit-scrollbar-thumb {
+            background: rgba(116, 185, 255, 0.5);
+            border-radius: 3px;
+        }
+        
+        .protocol-node {
+            background: rgba(15, 52, 96, 0.8);
+            border: 1px solid rgba(116, 185, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin: 8px 0;
+            transition: all 0.3s ease;
+        }
+        
+        .protocol-node:hover {
+            border-color: var(--accent-green);
+            box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2);
+        }
+        
+        .data-flow {
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        
+        .export-btn {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            transition: all 0.3s ease;
+        }
+        
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(116, 185, 255, 0.3);
+        }
+    </style>
+</head>
+<body class="tech-bg grid-overlay">
+    <!-- 导航栏 -->
+    <nav class="fixed top-0 left-0 right-0 z-50 glass-effect">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <h1 class="title-font text-2xl font-bold text-white">
+                        <span class="text-green-400">Serial</span>Monitor<span class="text-blue-400">Pro</span>
+                    </h1>
+                    <span class="text-gray-400">数据分析中心</span>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <a href="index.html" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                        返回监控
+                    </a>
+                    <a href="config.html" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-colors">
+                        串口配置
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区域 -->
+    <div class="pt-20 min-h-screen pb-16">
+        <div class="container mx-auto px-6">
+            <!-- 页面标题 -->
+            <div class="text-center mb-12">
+                <h2 class="title-font text-4xl font-bold mb-4">
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
+                        数据分析与日志管理
+                    </span>
+                </h2>
+                <p class="text-gray-400 text-lg">深度分析串口通信数据，生成详细报告，优化系统性能</p>
+            </div>
+
+            <!-- 关键指标概览 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="metric-card rounded-lg p-6 hover-lift">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-400 text-sm">总数据量</p>
+                            <p id="totalData" class="text-2xl font-bold text-blue-400">0 B</p>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="metric-card rounded-lg p-6 hover-lift">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-400 text-sm">平均速率</p>
+                            <p id="avgRate" class="text-2xl font-bold text-green-400">0 B/s</p>
+                        </div>
+                        <div class="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="metric-card rounded-lg p-6 hover-lift">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-400 text-sm">数据包数量</p>
+                            <p id="packetCount" class="text-2xl font-bold text-orange-400">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-orange-600 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="metric-card rounded-lg p-6 hover-lift">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-400 text-sm">错误率</p>
+                            <p id="errorRate" class="text-2xl font-bold text-red-400">0%</p>
+                        </div>
+                        <div class="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主要内容网格 -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- 左侧 - 实时图表 -->
+                <div class="lg:col-span-2 space-y-8">
+                    <!-- 数据流量图表 -->
+                    <div class="analysis-card rounded-lg p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="title-font text-xl font-bold flex items-center">
+                                <svg class="w-6 h-6 mr-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
+                                </svg>
+                                实时数据流量
+                            </h3>
+                            <div class="flex space-x-2">
+                                <button id="resetTrafficChart" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm transition-colors">
+                                    重置
+                                </button>
+                                <select id="chartTimeframe" class="px-3 py-1 bg-gray-700 border border-gray-600 rounded text-sm">
+                                    <option value="1">1分钟</option>
+                                    <option value="5">5分钟</option>
+                                    <option value="15">15分钟</option>
+                                    <option value="60">1小时</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="trafficChart" style="height: 300px;"></div>
+                    </div>
+                    
+                    <!-- 协议分析 -->
+                    <div class="analysis-card rounded-lg p-6">
+                        <h3 class="title-font text-xl font-bold mb-6 flex items-center">
+                            <svg class="w-6 h-6 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                            </svg>
+                            协议分析
+                        </h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="protocol-node">
+                                <h4 class="font-semibold text-blue-400 mb-2">UART协议</h4>
+                                <div class="text-sm text-gray-300 space-y-1">
+                                    <div>波特率: 115200 bps</div>
+                                    <div>数据位: 8</div>
+                                    <div>停止位: 1</div>
+                                    <div>校验位: 无</div>
+                                </div>
+                                <div class="mt-3 text-xs text-green-400">
+                                    状态: 正常通信
+                                </div>
+                            </div>
+                            
+                            <div class="protocol-node">
+                                <h4 class="font-semibold text-purple-400 mb-2">Modbus RTU</h4>
+                                <div class="text-sm text-gray-300 space-y-1">
+                                    <div>设备地址: 0x01</div>
+                                    <div>功能码: 0x03</div>
+                                    <div>寄存器: 0x0000</div>
+                                    <div>数据长度: 2 bytes</div>
+                                </div>
+                                <div class="mt-3 text-xs text-green-400">
+                                    状态: 检测到协议
+                                </div>
+                            </div>
+                            
+                            <div class="protocol-node">
+                                <h4 class="font-semibold text-orange-400 mb-2">自定义协议</h4>
+                                <div class="text-sm text-gray-300 space-y-1">
+                                    <div>帧头: 0xAA55</div>
+                                    <div>帧长度: 可变</div>
+                                    <div>校验: CRC16</div>
+                                    <div>帧尾: 0x55AA</div>
+                                </div>
+                                <div class="mt-3 text-xs text-yellow-400">
+                                    状态: 正在分析
+                                </div>
+                            </div>
+                            
+                            <div class="protocol-node">
+                                <h4 class="font-semibold text-red-400 mb-2">错误检测</h4>
+                                <div class="text-sm text-gray-300 space-y-1">
+                                    <div>校验错误: 0</div>
+                                    <div>帧错误: 0</div>
+                                    <div>溢出错误: 0</div>
+                                    <div>总错误: 0</div>
+                                </div>
+                                <div class="mt-3 text-xs text-green-400">
+                                    状态: 无错误
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 数据可视化 -->
+                    <div class="analysis-card rounded-lg p-6">
+                        <h3 class="title-font text-xl font-bold mb-6 flex items-center">
+                            <svg class="w-6 h-6 mr-3 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                            数据统计
+                        </h3>
+                        <div id="statisticsChart" style="height: 300px;"></div>
+                    </div>
+                </div>
+
+                <!-- 右侧 - 日志管理和导出 -->
+                <div class="space-y-8">
+                    <!-- 实时日志 -->
+                    <div class="analysis-card rounded-lg p-6">
+                        <h3 class="title-font text-xl font-bold mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            实时日志
+                        </h3>
+                        
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex space-x-2">
+                                <button id="clearLog" class="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm transition-colors">
+                                    清空
+                                </button>
+                                <button id="pauseLog" class="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded text-sm transition-colors">
+                                    暂停
+                                </button>
+                            </div>
+                            <select id="logLevel" class="px-3 py-1 bg-gray-700 border border-gray-600 rounded text-sm">
+                                <option value="all">全部</option>
+                                <option value="info">信息</option>
+                                <option value="warning">警告</option>
+                                <option value="error">错误</option>
+                            </select>
+                        </div>
+                        
+                        <div id="logViewer" class="bg-black rounded-lg p-4 data-flow scrollable" style="height: 300px;">
+                            <div class="text-gray-500 text-center py-8">
+                                <svg class="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                <p>等待日志数据...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 数据导出 -->
+                    <div class="analysis-card rounded-lg p-6">
+                        <h3 class="title-font text-xl font-bold mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            数据导出
+                        </h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-2">导出格式</label>
+                                <select id="exportFormat" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-sm">
+                                    <option value="csv">CSV格式</option>
+                                    <option value="json">JSON格式</option>
+                                    <option value="txt">文本格式</option>
+                                    <option value="hex">十六进制</option>
+                                    <option value="binary">二进制</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-2">时间范围</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="datetime-local" id="exportStartTime" class="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm">
+                                    <input type="datetime-local" id="exportEndTime" class="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm">
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-2">过滤条件</label>
+                                <select id="exportFilter" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-sm">
+                                    <option value="all">全部数据</option>
+                                    <option value="port1">串口1</option>
+                                    <option value="port2">串口2</option>
+                                    <option value="errors">仅错误</option>
+                                    <option value="protocol">协议数据</option>
+                                </select>
+                            </div>
+                            
+                            <button id="exportData" class="export-btn w-full px-4 py-3 rounded-lg font-medium text-white transition-colors">
+                                导出数据
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 报告生成 -->
+                    <div class="analysis-card rounded-lg p-6">
+                        <h3 class="title-font text-xl font-bold mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            报告生成
+                        </h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-2">报告类型</label>
+                                <select id="reportType" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-sm">
+                                    <option value="summary">汇总报告</option>
+                                    <option value="detailed">详细报告</option>
+                                    <option value="error">错误分析</option>
+                                    <option value="performance">性能分析</option>
+                                </select>
+                            </div>
+                            
+                            <button id="generateReport" class="w-full px-4 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors">
+                                生成报告
+                            </button>
+                            
+                            <div id="reportStatus" class="text-sm text-gray-400 text-center">
+                                准备就绪
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部状态栏 -->
+    <footer class="fixed bottom-0 left-0 right-0 glass-effect border-t border-gray-700">
+        <div class="container mx-auto px-6 py-3">
+            <div class="flex items-center justify-between text-sm">
+                <div class="flex items-center space-x-4">
+                    <span class="flex items-center">
+                        <span class="w-2 h-2 bg-purple-400 rounded-full mr-2 animate-pulse"></span>
+                        <span>分析模式</span>
+                    </span>
+                    <span class="text-gray-400">|</span>
+                    <span id="analysisStatus">数据分析中...</span>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <span class="text-gray-400">版本: v1.0.0</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // 数据分析页面JavaScript逻辑
+        class SerialAnalysisManager {
+            constructor() {
+                this.trafficChart = null;
+                this.statisticsChart = null;
+                this.logData = [];
+                this.isLogPaused = false;
+                this.analysisData = {
+                    totalData: 0,
+                    packetCount: 0,
+                    errorCount: 0,
+                    startTime: Date.now()
+                };
+                
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.initCharts();
+                this.startDataSimulation();
+                this.updateMetrics();
+                
+                // 页面动画
+                anime({
+                    targets: '.analysis-card, .metric-card',
+                    opacity: [0, 1],
+                    translateY: [30, 0],
+                    delay: anime.stagger(150),
+                    duration: 800,
+                    easing: 'easeOutQuart'
+                });
+            }
+
+            setupEventListeners() {
+                // 图表控制
+                document.getElementById('resetTrafficChart').addEventListener('click', () => this.resetTrafficChart());
+                document.getElementById('chartTimeframe').addEventListener('change', (e) => this.updateChartTimeframe(e.target.value));
+                
+                // 日志控制
+                document.getElementById('clearLog').addEventListener('click', () => this.clearLog());
+                document.getElementById('pauseLog').addEventListener('click', () => this.toggleLogPause());
+                document.getElementById('logLevel').addEventListener('change', (e) => this.filterLog(e.target.value));
+                
+                // 数据导出
+                document.getElementById('exportData').addEventListener('click', () => this.exportData());
+                
+                // 报告生成
+                document.getElementById('generateReport').addEventListener('click', () => this.generateReport());
+            }
+
+            initCharts() {
+                // 初始化流量图表
+                const trafficChartDom = document.getElementById('trafficChart');
+                this.trafficChart = echarts.init(trafficChartDom);
+                
+                const trafficOption = {
+                    backgroundColor: 'transparent',
+                    grid: { left: '10%', right: '10%', top: '10%', bottom: '20%' },
+                    xAxis: {
+                        type: 'category',
+                        data: [],
+                        axisLine: { lineStyle: { color: '#4a5568' } },
+                        axisLabel: { color: '#a0aec0', fontSize: 10 }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        axisLine: { lineStyle: { color: '#4a5568' } },
+                        axisLabel: { color: '#a0aec0', fontSize: 10 },
+                        splitLine: { lineStyle: { color: '#2d3748' } }
+                    },
+                    series: [{
+                        data: [],
+                        type: 'line',
+                        smooth: true,
+                        lineStyle: { color: '#74b9ff', width: 2 },
+                        areaStyle: {
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 0, y2: 1,
+                                colorStops: [
+                                    { offset: 0, color: 'rgba(116, 185, 255, 0.3)' },
+                                    { offset: 1, color: 'rgba(116, 185, 255, 0.05)' }
+                                ]
+                            }
+                        },
+                        symbol: 'none'
+                    }]
+                };
+                
+                this.trafficChart.setOption(trafficOption);
+                
+                // 初始化统计图表
+                const statisticsChartDom = document.getElementById('statisticsChart');
+                this.statisticsChart = echarts.init(statisticsChartDom);
+                
+                const statisticsOption = {
+                    backgroundColor: 'transparent',
+                    tooltip: { trigger: 'item' },
+                    legend: {
+                        orient: 'vertical',
+                        left: 'left',
+                        textStyle: { color: '#a0aec0' }
+                    },
+                    series: [{
+                        name: '数据分布',
+                        type: 'pie',
+                        radius: '50%',
+                        data: [
+                            { value: 1048, name: '有效数据' },
+                            { value: 735, name: '协议开销' },
+                            { value: 580, name: '控制命令' },
+                            { value: 484, name: '错误数据' },
+                            { value: 300, name: '其他' }
+                        ],
+                        emphasis: {
+                            itemStyle: {
+                                shadowBlur: 10,
+                                shadowOffsetX: 0,
+                                shadowColor: 'rgba(0, 0, 0, 0.5)'
+                            }
+                        },
+                        itemStyle: {
+                            color: function(params) {
+                                const colors = ['#74b9ff', '#00ff88', '#ff6b35', '#ff4757', '#a29bfe'];
+                                return colors[params.dataIndex];
+                            }
+                        }
+                    }]
+                };
+                
+                this.statisticsChart.setOption(statisticsOption);
+            }
+
+            startDataSimulation() {
+                // 模拟实时数据更新
+                setInterval(() => {
+                    this.updateTrafficChart();
+                    this.addLogEntry();
+                    this.updateMetrics();
+                }, 2000);
+                
+                // 定期更新统计信息
+                setInterval(() => {
+                    this.updateStatisticsChart();
+                }, 10000);
+            }
+
+            updateTrafficChart() {
+                if (!this.trafficChart) return;
+                
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString();
+                const currentRate = Math.floor(Math.random() * 1000) + 500; // 模拟数据
+                
+                const option = this.trafficChart.getOption();
+                const xData = option.xAxis[0].data;
+                const yData = option.series[0].data;
+                
+                // 保持最近20个数据点
+                if (xData.length >= 20) {
+                    xData.shift();
+                    yData.shift();
+                }
+                
+                xData.push(timeStr);
+                yData.push(currentRate);
+                
+                this.trafficChart.setOption({
+                    xAxis: { data: xData },
+                    series: [{ data: yData }]
+                });
+                
+                // 更新分析数据
+                this.analysisData.totalData += currentRate;
+                this.analysisData.packetCount++;
+            }
+
+            updateStatisticsChart() {
+                if (!this.statisticsChart) return;
+                
+                // 模拟数据变化
+                const newData = [
+                    { value: Math.floor(Math.random() * 1000) + 500, name: '有效数据' },
+                    { value: Math.floor(Math.random() * 800) + 300, name: '协议开销' },
+                    { value: Math.floor(Math.random() * 600) + 200, name: '控制命令' },
+                    { value: Math.floor(Math.random() * 100), name: '错误数据' },
+                    { value: Math.floor(Math.random() * 400) + 100, name: '其他' }
+                ];
+                
+                this.statisticsChart.setOption({
+                    series: [{ data: newData }]
+                });
+            }
+
+            updateMetrics() {
+                const totalData = this.formatBytes(this.analysisData.totalData);
+                const avgRate = this.formatBytes(this.analysisData.totalData / ((Date.now() - this.analysisData.startTime) / 1000));
+                const packetCount = this.analysisData.packetCount;
+                const errorRate = this.analysisData.packetCount > 0 ? 
+                    ((this.analysisData.errorCount / this.analysisData.packetCount) * 100).toFixed(2) : 0;
+                
+                document.getElementById('totalData').textContent = totalData;
+                document.getElementById('avgRate').textContent = avgRate + '/s';
+                document.getElementById('packetCount').textContent = packetCount.toLocaleString();
+                document.getElementById('errorRate').textContent = errorRate + '%';
+            }
+
+            addLogEntry() {
+                if (this.isLogPaused) return;
+                
+                const levels = ['info', 'warning', 'error'];
+                const messages = [
+                    '数据接收正常',
+                    '串口连接稳定',
+                    '协议解析成功',
+                    '检测到数据包',
+                    '校验通过',
+                    '缓冲区状态正常'
+                ];
+                
+                const level = levels[Math.floor(Math.random() * levels.length)];
+                const message = messages[Math.floor(Math.random() * messages.length)];
+                const timestamp = new Date().toLocaleTimeString();
+                
+                const logEntry = {
+                    timestamp,
+                    level,
+                    message,
+                    port: `COM${Math.floor(Math.random() * 3) + 1}`
+                };
+                
+                this.logData.push(logEntry);
+                
+                // 限制日志数量
+                if (this.logData.length > 100) {
+                    this.logData.shift();
+                }
+                
+                this.updateLogDisplay();
+            }
+
+            updateLogDisplay() {
+                const logViewer = document.getElementById('logViewer');
+                const logLevel = document.getElementById('logLevel').value;
+                
+                let html = '';
+                
+                this.logData.forEach(entry => {
+                    if (logLevel !== 'all' && entry.level !== logLevel) return;
+                    
+                    const levelColors = {
+                        info: 'text-blue-400',
+                        warning: 'text-yellow-400',
+                        error: 'text-red-400'
+                    };
+                    
+                    html += `
+                        <div class="flex items-start space-x-2 mb-1">
+                            <span class="text-gray-500 text-xs">${entry.timestamp}</span>
+                            <span class="text-gray-400 text-xs">[${entry.port}]</span>
+                            <span class="${levelColors[entry.level]} text-xs font-medium">${entry.level.toUpperCase()}</span>
+                            <span class="text-gray-300 text-xs">${entry.message}</span>
+                        </div>
+                    `;
+                });
+                
+                if (html === '') {
+                    html = `
+                        <div class="text-gray-500 text-center py-4">
+                            <p>暂无日志数据</p>
+                        </div>
+                    `;
+                }
+                
+                logViewer.innerHTML = html;
+                
+                // 自动滚动到底部
+                logViewer.scrollTop = logViewer.scrollHeight;
+            }
+
+            clearLog() {
+                this.logData = [];
+                this.updateLogDisplay();
+                this.showNotification('日志已清空', 'info');
+            }
+
+            toggleLogPause() {
+                this.isLogPaused = !this.isLogPaused;
+                const button = document.getElementById('pauseLog');
+                button.textContent = this.isLogPaused ? '继续' : '暂停';
+                button.className = this.isLogPaused ? 
+                    'px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm transition-colors' :
+                    'px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded text-sm transition-colors';
+            }
+
+            filterLog(level) {
+                this.updateLogDisplay();
+            }
+
+            resetTrafficChart() {
+                this.trafficChart.setOption({
+                    xAxis: { data: [] },
+                    series: [{ data: [] }]
+                });
+                this.showNotification('流量图表已重置', 'info');
+            }
+
+            updateChartTimeframe(minutes) {
+                // 这里可以实现根据时间范围更新图表数据
+                this.showNotification(`图表时间范围已更新为 ${minutes} 分钟`, 'info');
+            }
+
+            async exportData() {
+                const format = document.getElementById('exportFormat').value;
+                const startTime = document.getElementById('exportStartTime').value;
+                const endTime = document.getElementById('exportEndTime').value;
+                const filter = document.getElementById('exportFilter').value;
+                
+                // 模拟导出过程
+                this.showNotification('正在导出数据...', 'info');
+                
+                setTimeout(() => {
+                    // 创建模拟数据
+                    const data = this.generateExportData(format, filter);
+                    this.downloadFile(data, `serial_data.${format}`);
+                    this.showNotification('数据导出完成', 'success');
+                }, 2000);
+            }
+
+            generateExportData(format, filter) {
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                
+                switch (format) {
+                    case 'csv':
+                        return `时间,串口,方向,数据,长度\\n${timestamp},COM1,RX,Hello World,11\\n${timestamp},COM1,TX,ACK,3`;
+                    
+                    case 'json':
+                        return JSON.stringify({
+                            exportTime: new Date().toISOString(),
+                            format: 'json',
+                            data: [
+                                { time: timestamp, port: 'COM1', direction: 'RX', data: 'Hello World', length: 11 },
+                                { time: timestamp, port: 'COM1', direction: 'TX', data: 'ACK', length: 3 }
+                            ]
+                        }, null, 2);
+                    
+                    case 'txt':
+                        return `[${timestamp}] COM1 RX: Hello World (11 bytes)\\n[${timestamp}] COM1 TX: ACK (3 bytes)`;
+                    
+                    case 'hex':
+                        return `${timestamp} COM1 RX: 48 65 6C 6C 6F 20 57 6F 72 6C 64\\n${timestamp} COM1 TX: 41 43 4B`;
+                    
+                    default:
+                        return 'Sample data';
+                }
+            }
+
+            downloadFile(content, filename) {
+                const blob = new Blob([content], { type: 'text/plain' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }
+
+            async generateReport() {
+                const reportType = document.getElementById('reportType').value;
+                const statusDiv = document.getElementById('reportStatus');
+                
+                statusDiv.textContent = '正在生成报告...';
+                statusDiv.className = 'text-sm text-yellow-400 text-center';
+                
+                // 模拟报告生成过程
+                setTimeout(() => {
+                    const reportData = this.generateReportData(reportType);
+                    this.downloadFile(reportData, `serial_report_${reportType}_${Date.now()}.txt`);
+                    
+                    statusDiv.textContent = '报告生成完成';
+                    statusDiv.className = 'text-sm text-green-400 text-center';
+                    
+                    this.showNotification('报告已生成并下载', 'success');
+                }, 3000);
+            }
+
+            generateReportData(type) {
+                const timestamp = new Date().toISOString();
+                
+                switch (type) {
+                    case 'summary':
+                        return `串口通信汇总报告\\n生成时间: ${timestamp}\\n\\n总数据量: ${this.formatBytes(this.analysisData.totalData)}\\n数据包数量: ${this.analysisData.packetCount}\\n平均速率: ${this.formatBytes(this.analysisData.totalData / ((Date.now() - this.analysisData.startTime) / 1000))}/s\\n错误率: ${this.analysisData.packetCount > 0 ? ((this.analysisData.errorCount / this.analysisData.packetCount) * 100).toFixed(2) : 0}%`;
+                    
+                    case 'detailed':
+                        return `串口通信详细报告\\n生成时间: ${timestamp}\\n\\n通信统计:\\n- 总数据量: ${this.formatBytes(this.analysisData.totalData)}\\n- 数据包数量: ${this.analysisData.packetCount}\\n- 运行时间: ${Math.floor((Date.now() - this.analysisData.startTime) / 1000)}秒\\n\\n协议分析:\\n- UART: 115200 bps, 8N1\\n- 检测到Modbus RTU协议\\n- 检测到自定义协议\\n\\n错误统计:\\n- 总错误: ${this.analysisData.errorCount}\\n- 错误率: ${this.analysisData.packetCount > 0 ? ((this.analysisData.errorCount / this.analysisData.packetCount) * 100).toFixed(2) : 0}%`;
+                    
+                    case 'error':
+                        return `串口通信错误分析报告\\n生成时间: ${timestamp}\\n\\n错误统计:\\n- 总错误数: ${this.analysisData.errorCount}\\n- 错误率: ${this.analysisData.packetCount > 0 ? ((this.analysisData.errorCount / this.analysisData.packetCount) * 100).toFixed(2) : 0}%\\n\\n错误类型:\\n- 校验错误: 0\\n- 帧错误: 0\\n- 溢出错误: 0\\n- 其他错误: 0\\n\\n建议:\\n当前通信质量良好，无错误记录。建议继续监控以发现潜在问题。`;
+                    
+                    case 'performance':
+                        return `串口通信性能分析报告\\n生成时间: ${timestamp}\\n\\n性能指标:\\n- 平均数据速率: ${this.formatBytes(this.analysisData.totalData / ((Date.now() - this.analysisData.startTime) / 1000))}/s\\n- 峰值速率: ${this.formatBytes(Math.floor(Math.random() * 2000) + 1000)}/s\\n- 数据包平均大小: ${this.analysisData.packetCount > 0 ? Math.floor(this.analysisData.totalData / this.analysisData.packetCount) : 0} bytes\\n\\n协议效率:\\n- 有效数据比例: 85%\\n- 协议开销: 15%\\n\\n建议:\\n当前通信性能良好，可考虑优化数据包大小以提高传输效率。`;
+                    
+                    default:
+                        return '报告内容';
+                }
+            }
+
+            formatBytes(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+            }
+
+            showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `fixed top-24 right-6 z-50 px-6 py-4 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full`;
+                
+                const styles = {
+                    success: 'bg-green-600 text-white',
+                    error: 'bg-red-600 text-white',
+                    warning: 'bg-yellow-600 text-white',
+                    info: 'bg-blue-600 text-white'
+                };
+                
+                notification.className += ` ${styles[type] || styles.info}`;
+                notification.textContent = message;
+                
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.classList.remove('translate-x-full');
+                }, 100);
+                
+                setTimeout(() => {
+                    notification.classList.add('translate-x-full');
+                    setTimeout(() => {
+                        document.body.removeChild(notification);
+                    }, 300);
+                }, 3000);
+            }
+        }
+
+        // 初始化分析管理器
+        document.addEventListener('DOMContentLoaded', () => {
+            window.analysisManager = new SerialAnalysisManager();
+        });
+    </script>
+</body>
+</html>

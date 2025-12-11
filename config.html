@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>串口配置 - Serial Monitor Pro</title>
+    
+    <!-- 核心样式库 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Fira+Code:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- 核心JavaScript库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #0f3460;
+            --text-primary: #f1f2f6;
+            --text-secondary: #ddd;
+            --accent-green: #00ff88;
+            --accent-orange: #ff6b35;
+            --accent-red: #ff4757;
+            --accent-blue: #74b9ff;
+        }
+        
+        body {
+            font-family: 'Fira Code', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+        
+        .title-font {
+            font-family: 'Orbitron', monospace;
+        }
+        
+        .glass-effect {
+            background: rgba(22, 33, 62, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(116, 185, 255, 0.2);
+        }
+        
+        .tech-bg {
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(116, 185, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(0, 255, 136, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(255, 107, 53, 0.1) 0%, transparent 50%);
+        }
+        
+        .grid-overlay {
+            background-image: 
+                linear-gradient(rgba(116, 185, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(116, 185, 255, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        
+        .hover-lift {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .hover-lift:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .config-card {
+            background: linear-gradient(135deg, rgba(22, 33, 62, 0.9), rgba(15, 52, 96, 0.9));
+            border: 1px solid rgba(116, 185, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .config-card:hover {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.2);
+        }
+        
+        .form-input {
+            background: rgba(45, 55, 72, 0.8);
+            border: 1px solid rgba(116, 185, 255, 0.3);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+        
+        .form-input:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(116, 185, 255, 0.1);
+            outline: none;
+        }
+        
+        .preset-card {
+            background: rgba(22, 33, 62, 0.6);
+            border: 1px solid rgba(116, 185, 255, 0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .preset-card:hover {
+            border-color: var(--accent-blue);
+            background: rgba(22, 33, 62, 0.8);
+        }
+        
+        .preset-card.active {
+            border-color: var(--accent-green);
+            background: rgba(0, 255, 136, 0.1);
+        }
+    </style>
+</head>
+<body class="tech-bg grid-overlay">
+    <!-- 导航栏 -->
+    <nav class="fixed top-0 left-0 right-0 z-50 glass-effect">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <h1 class="title-font text-2xl font-bold text-white">
+                        <span class="text-green-400">Serial</span>Monitor<span class="text-blue-400">Pro</span>
+                    </h1>
+                    <span class="text-gray-400">串口配置中心</span>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <a href="index.html" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                        返回监控
+                    </a>
+                    <a href="analysis.html" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">
+                        数据分析
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区域 -->
+    <div class="pt-20 min-h-screen pb-16">
+        <div class="container mx-auto px-6">
+            <!-- 页面标题 -->
+            <div class="text-center mb-12">
+                <h2 class="title-font text-4xl font-bold mb-4">
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-green-400">
+                        串口配置管理
+                    </span>
+                </h2>
+                <p class="text-gray-400 text-lg">配置串口参数，管理连接预设，优化通信性能</p>
+            </div>
+
+            <!-- 主要内容网格 -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- 左侧 - 配置表单 -->
+                <div class="lg:col-span-2">
+                    <div class="config-card rounded-lg p-8">
+                        <h3 class="title-font text-2xl font-bold mb-6 flex items-center">
+                            <svg class="w-6 h-6 mr-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            串口参数配置
+                        </h3>
+                        
+                        <form id="configForm" class="space-y-6">
+                            <!-- 基本参数 -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">串口选择</label>
+                                    <select id="portSelect" class="form-input w-full px-4 py-3 rounded-lg">
+                                        <option value="">请选择串口</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">波特率</label>
+                                    <select id="baudRate" class="form-input w-full px-4 py-3 rounded-lg">
+                                        <option value="300">300</option>
+                                        <option value="600">600</option>
+                                        <option value="1200">1200</option>
+                                        <option value="2400">2400</option>
+                                        <option value="4800">4800</option>
+                                        <option value="9600">9600</option>
+                                        <option value="14400">14400</option>
+                                        <option value="19200">19200</option>
+                                        <option value="38400">38400</option>
+                                        <option value="57600">57600</option>
+                                        <option value="115200" selected>115200</option>
+                                        <option value="128000">128000</option>
+                                        <option value="230400">230400</option>
+                                        <option value="256000">256000</option>
+                                        <option value="460800">460800</option>
+                                        <option value="921600">921600</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">数据位</label>
+                                    <select id="dataBits" class="form-input w-full px-4 py-3 rounded-lg">
+                                        <option value="5">5</option>
+                                        <option value="6">6</option>
+                                        <option value="7">7</option>
+                                        <option value="8" selected>8</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">停止位</label>
+                                    <select id="stopBits" class="form-input w-full px-4 py-3 rounded-lg">
+                                        <option value="1" selected>1</option>
+                                        <option value="1.5">1.5</option>
+                                        <option value="2">2</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">校验位</label>
+                                    <select id="parity" class="form-input w-full px-4 py-3 rounded-lg">
+                                        <option value="none" selected>无</option>
+                                        <option value="even">偶校验</option>
+                                        <option value="odd">奇校验</option>
+                                        <option value="mark">标记</option>
+                                        <option value="space">空格</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">流控制</label>
+                                    <select id="flowControl" class="form-input w-full px-4 py-3 rounded-lg">
+                                        <option value="none" selected>无</option>
+                                        <option value="hardware">硬件 (RTS/CTS)</option>
+                                        <option value="software">软件 (XON/XOFF)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- 高级设置 -->
+                            <div class="border-t border-gray-700 pt-6">
+                                <h4 class="text-lg font-semibold text-gray-300 mb-4">高级设置</h4>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-300 mb-2">读取超时 (ms)</label>
+                                        <input type="number" id="readTimeout" class="form-input w-full px-4 py-3 rounded-lg" value="1000" min="0" max="60000">
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-300 mb-2">写入超时 (ms)</label>
+                                        <input type="number" id="writeTimeout" class="form-input w-full px-4 py-3 rounded-lg" value="1000" min="0" max="60000">
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-300 mb-2">缓冲区大小</label>
+                                        <input type="number" id="bufferSize" class="form-input w-full px-4 py-3 rounded-lg" value="4096" min="256" max="65536" step="256">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 操作按钮 -->
+                            <div class="flex flex-wrap gap-4 pt-6 border-t border-gray-700">
+                                <button type="button" id="applyConfig" class="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition-colors font-medium">
+                                    应用配置
+                                </button>
+                                
+                                <button type="button" id="testConnection" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors font-medium">
+                                    测试连接
+                                </button>
+                                
+                                <button type="button" id="savePreset" class="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors font-medium">
+                                    保存为预设
+                                </button>
+                                
+                                <button type="button" id="resetConfig" class="px-6 py-3 bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors font-medium">
+                                    重置默认
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 右侧 - 预设管理和测试工具 -->
+                <div class="space-y-8">
+                    <!-- 配置预设 -->
+                    <div class="config-card rounded-lg p-6">
+                        <h3 class="title-font text-xl font-bold mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                            </svg>
+                            配置预设
+                        </h3>
+                        
+                        <div id="presetList" class="space-y-3">
+                            <!-- 预设列表将动态生成 -->
+                            <div class="preset-card rounded-lg p-4">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h4 class="font-medium">默认配置</h4>
+                                    <span class="text-xs text-green-400">当前使用</span>
+                                </div>
+                                <div class="text-xs text-gray-400">
+                                    115200, 8N1, 无流控
+                                </div>
+                            </div>
+                            
+                            <div class="preset-card rounded-lg p-4">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h4 class="font-medium">Arduino UNO</h4>
+                                    <button class="text-xs text-blue-400 hover:text-blue-300">加载</button>
+                                </div>
+                                <div class="text-xs text-gray-400">
+                                    9600, 8N1, 无流控
+                                </div>
+                            </div>
+                            
+                            <div class="preset-card rounded-lg p-4">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h4 class="font-medium">GPS模块</h4>
+                                    <button class="text-xs text-blue-400 hover:text-blue-300">加载</button>
+                                </div>
+                                <div class="text-xs text-gray-400">
+                                    9600, 8N1, 无流控
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 串口测试工具 -->
+                    <div class="config-card rounded-lg p-6">
+                        <h3 class="title-font text-xl font-bold mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            串口测试
+                        </h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-2">测试数据</label>
+                                <textarea id="testData" class="form-input w-full px-4 py-3 rounded-lg h-24" placeholder="输入要发送的测试数据...">Hello, Serial Port!</textarea>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">发送间隔 (ms)</label>
+                                    <input type="number" id="sendInterval" class="form-input w-full px-4 py-3 rounded-lg" value="1000" min="100" max="10000">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">发送次数</label>
+                                    <input type="number" id="sendCount" class="form-input w-full px-4 py-3 rounded-lg" value="5" min="1" max="100">
+                                </div>
+                            </div>
+                            
+                            <div class="flex space-x-3">
+                                <button id="startTest" class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors font-medium">
+                                    开始测试
+                                </button>
+                                <button id="stopTest" class="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors font-medium" disabled>
+                                    停止测试
+                                </button>
+                            </div>
+                            
+                            <div id="testResult" class="text-sm text-gray-400">
+                                <div class="flex items-center">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    准备就绪，点击开始测试
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 串口信息 -->
+                    <div class="config-card rounded-lg p-6">
+                        <h3 class="title-font text-xl font-bold mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            串口信息
+                        </h3>
+                        
+                        <div id="portInfo" class="space-y-3 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">状态:</span>
+                                <span class="text-yellow-400">未连接</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">设备名称:</span>
+                                <span>--</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">VID/PID:</span>
+                                <span>--</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">驱动:</span>
+                                <span>--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部状态栏 -->
+    <footer class="fixed bottom-0 left-0 right-0 glass-effect border-t border-gray-700">
+        <div class="container mx-auto px-6 py-3">
+            <div class="flex items-center justify-between text-sm">
+                <div class="flex items-center space-x-4">
+                    <span class="flex items-center">
+                        <span class="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
+                        <span>配置模式</span>
+                    </span>
+                    <span class="text-gray-400">|</span>
+                    <span id="configStatus">准备就绪</span>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <span class="text-gray-400">版本: v1.0.0</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // 配置页面JavaScript逻辑
+        class SerialConfigManager {
+            constructor() {
+                this.currentConfig = {
+                    baudRate: 115200,
+                    dataBits: 8,
+                    stopBits: 1,
+                    parity: 'none',
+                    flowControl: 'none',
+                    readTimeout: 1000,
+                    writeTimeout: 1000,
+                    bufferSize: 4096
+                };
+                
+                this.presets = [
+                    { name: '默认配置', baudRate: 115200, dataBits: 8, stopBits: 1, parity: 'none' },
+                    { name: 'Arduino UNO', baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'none' },
+                    { name: 'GPS模块', baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'none' },
+                    { name: 'ESP8266', baudRate: 115200, dataBits: 8, stopBits: 1, parity: 'none' },
+                    { name: 'STM32', baudRate: 115200, dataBits: 8, stopBits: 1, parity: 'none' }
+                ];
+                
+                this.testRunning = false;
+                this.testInterval = null;
+                
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.loadPresets();
+                this.updatePortList();
+                this.loadDefaultConfig();
+                
+                // 页面动画
+                anime({
+                    targets: '.config-card',
+                    opacity: [0, 1],
+                    translateY: [30, 0],
+                    delay: anime.stagger(200),
+                    duration: 800,
+                    easing: 'easeOutQuart'
+                });
+            }
+
+            setupEventListeners() {
+                // 表单控件
+                document.getElementById('applyConfig').addEventListener('click', () => this.applyConfig());
+                document.getElementById('testConnection').addEventListener('click', () => this.testConnection());
+                document.getElementById('savePreset').addEventListener('click', () => this.savePreset());
+                document.getElementById('resetConfig').addEventListener('click', () => this.resetConfig());
+                
+                // 测试工具
+                document.getElementById('startTest').addEventListener('click', () => this.startTest());
+                document.getElementById('stopTest').addEventListener('click', () => this.stopTest());
+                
+                // 表单变化监听
+                const formElements = ['baudRate', 'dataBits', 'stopBits', 'parity', 'flowControl'];
+                formElements.forEach(id => {
+                    document.getElementById(id).addEventListener('change', () => this.updateConfigFromForm());
+                });
+            }
+
+            async updatePortList() {
+                const portSelect = document.getElementById('portSelect');
+                
+                if (!('serial' in navigator)) {
+                    portSelect.innerHTML = '<option value="">浏览器不支持串口</option>';
+                    return;
+                }
+
+                try {
+                    const ports = await navigator.serial.getPorts();
+                    
+                    if (ports.length === 0) {
+                        portSelect.innerHTML = '<option value="">未检测到串口</option>';
+                    } else {
+                        portSelect.innerHTML = '<option value="">请选择串口</option>';
+                        
+                        ports.forEach((port, index) => {
+                            const option = document.createElement('option');
+                            option.value = index;
+                            option.textContent = `串口 ${index + 1}`;
+                            portSelect.appendChild(option);
+                        });
+                    }
+                } catch (error) {
+                    console.error('获取串口列表失败:', error);
+                    portSelect.innerHTML = '<option value="">获取串口列表失败</option>';
+                }
+            }
+
+            loadPresets() {
+                const presetList = document.getElementById('presetList');
+                presetList.innerHTML = '';
+                
+                this.presets.forEach((preset, index) => {
+                    const presetCard = document.createElement('div');
+                    presetCard.className = `preset-card rounded-lg p-4 ${index === 0 ? 'active' : ''}`;
+                    presetCard.innerHTML = `
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="font-medium">${preset.name}</h4>
+                            <button class="text-xs text-blue-400 hover:text-blue-300" onclick="configManager.loadPreset(${index})">
+                                加载
+                            </button>
+                        </div>
+                        <div class="text-xs text-gray-400">
+                            ${preset.baudRate}, ${preset.dataBits}${preset.parity.charAt(0).toUpperCase()}${preset.stopBits}
+                        </div>
+                    `;
+                    presetList.appendChild(presetCard);
+                });
+            }
+
+            loadPreset(index) {
+                const preset = this.presets[index];
+                if (!preset) return;
+                
+                // 更新表单
+                document.getElementById('baudRate').value = preset.baudRate;
+                document.getElementById('dataBits').value = preset.dataBits;
+                document.getElementById('stopBits').value = preset.stopBits;
+                document.getElementById('parity').value = preset.parity;
+                
+                // 更新当前配置
+                Object.assign(this.currentConfig, preset);
+                
+                // 更新预设卡片状态
+                document.querySelectorAll('.preset-card').forEach((card, i) => {
+                    card.classList.toggle('active', i === index);
+                });
+                
+                this.showNotification(`已加载预设: ${preset.name}`, 'success');
+                this.updateConfigStatus(`已加载预设: ${preset.name}`);
+            }
+
+            updateConfigFromForm() {
+                this.currentConfig = {
+                    baudRate: parseInt(document.getElementById('baudRate').value),
+                    dataBits: parseInt(document.getElementById('dataBits').value),
+                    stopBits: parseFloat(document.getElementById('stopBits').value),
+                    parity: document.getElementById('parity').value,
+                    flowControl: document.getElementById('flowControl').value,
+                    readTimeout: parseInt(document.getElementById('readTimeout').value),
+                    writeTimeout: parseInt(document.getElementById('writeTimeout').value),
+                    bufferSize: parseInt(document.getElementById('bufferSize').value)
+                };
+            }
+
+            async applyConfig() {
+                this.updateConfigFromForm();
+                
+                const portIndex = document.getElementById('portSelect').value;
+                if (!portIndex) {
+                    this.showNotification('请先选择串口', 'warning');
+                    return;
+                }
+                
+                try {
+                    const ports = await navigator.serial.getPorts();
+                    const port = ports[portIndex];
+                    
+                    if (!port) {
+                        this.showNotification('选择的串口不存在', 'error');
+                        return;
+                    }
+                    
+                    // 应用配置到串口
+                    await port.open(this.currentConfig);
+                    
+                    this.showNotification('配置应用成功', 'success');
+                    this.updateConfigStatus('配置已应用');
+                    
+                } catch (error) {
+                    console.error('应用配置失败:', error);
+                    this.showNotification('配置应用失败: ' + error.message, 'error');
+                }
+            }
+
+            async testConnection() {
+                const portIndex = document.getElementById('portSelect').value;
+                if (!portIndex) {
+                    this.showNotification('请先选择串口', 'warning');
+                    return;
+                }
+                
+                try {
+                    const ports = await navigator.serial.getPorts();
+                    const port = ports[portIndex];
+                    
+                    if (!port) {
+                        this.showNotification('选择的串口不存在', 'error');
+                        return;
+                    }
+                    
+                    this.updateConfigStatus('正在测试连接...');
+                    
+                    // 尝试打开串口
+                    await port.open(this.currentConfig);
+                    
+                    // 发送测试数据
+                    const writer = port.writable.getWriter();
+                    const testData = new TextEncoder().encode('TEST\\r\\n');
+                    await writer.write(testData);
+                    writer.releaseLock();
+                    
+                    // 读取响应
+                    const reader = port.readable.getReader();
+                    const result = await reader.read();
+                    reader.releaseLock();
+                    
+                    await port.close();
+                    
+                    if (result.value) {
+                        this.showNotification('连接测试成功', 'success');
+                        this.updateConfigStatus('连接测试成功');
+                    } else {
+                        this.showNotification('连接测试完成，无响应数据', 'info');
+                        this.updateConfigStatus('连接测试完成');
+                    }
+                    
+                } catch (error) {
+                    console.error('连接测试失败:', error);
+                    this.showNotification('连接测试失败: ' + error.message, 'error');
+                    this.updateConfigStatus('连接测试失败');
+                }
+            }
+
+            savePreset() {
+                this.updateConfigFromForm();
+                
+                const name = prompt('请输入预设名称:');
+                if (!name) return;
+                
+                const preset = {
+                    name: name,
+                    ...this.currentConfig
+                };
+                
+                this.presets.push(preset);
+                this.loadPresets();
+                
+                this.showNotification(`预设 "${name}" 已保存`, 'success');
+            }
+
+            resetConfig() {
+                this.currentConfig = {
+                    baudRate: 115200,
+                    dataBits: 8,
+                    stopBits: 1,
+                    parity: 'none',
+                    flowControl: 'none',
+                    readTimeout: 1000,
+                    writeTimeout: 1000,
+                    bufferSize: 4096
+                };
+                
+                // 重置表单
+                document.getElementById('baudRate').value = 115200;
+                document.getElementById('dataBits').value = 8;
+                document.getElementById('stopBits').value = 1;
+                document.getElementById('parity').value = 'none';
+                document.getElementById('flowControl').value = 'none';
+                document.getElementById('readTimeout').value = 1000;
+                document.getElementById('writeTimeout').value = 1000;
+                document.getElementById('bufferSize').value = 4096;
+                
+                this.showNotification('配置已重置为默认值', 'info');
+                this.updateConfigStatus('配置已重置');
+            }
+
+            async startTest() {
+                if (this.testRunning) return;
+                
+                const portIndex = document.getElementById('portSelect').value;
+                if (!portIndex) {
+                    this.showNotification('请先选择串口', 'warning');
+                    return;
+                }
+                
+                const testData = document.getElementById('testData').value;
+                const interval = parseInt(document.getElementById('sendInterval').value);
+                const count = parseInt(document.getElementById('sendCount').value);
+                
+                if (!testData) {
+                    this.showNotification('请输入测试数据', 'warning');
+                    return;
+                }
+                
+                try {
+                    const ports = await navigator.serial.getPorts();
+                    const port = ports[portIndex];
+                    
+                    if (!port) {
+                        this.showNotification('选择的串口不存在', 'error');
+                        return;
+                    }
+                    
+                    await port.open(this.currentConfig);
+                    
+                    this.testRunning = true;
+                    let sentCount = 0;
+                    
+                    document.getElementById('startTest').disabled = true;
+                    document.getElementById('stopTest').disabled = false;
+                    
+                    this.updateTestResult('测试进行中...', 'info');
+                    
+                    this.testInterval = setInterval(async () => {
+                        if (sentCount >= count) {
+                            this.stopTest();
+                            return;
+                        }
+                        
+                        try {
+                            const writer = port.writable.getWriter();
+                            const data = new TextEncoder().encode(testData + '\\r\\n');
+                            await writer.write(data);
+                            writer.releaseLock();
+                            
+                            sentCount++;
+                            this.updateTestResult(`已发送: ${sentCount}/${count}`, 'info');
+                            
+                        } catch (error) {
+                            console.error('发送数据失败:', error);
+                            this.updateTestResult('发送失败: ' + error.message, 'error');
+                            this.stopTest();
+                        }
+                    }, interval);
+                    
+                } catch (error) {
+                    console.error('测试启动失败:', error);
+                    this.showNotification('测试启动失败: ' + error.message, 'error');
+                }
+            }
+
+            stopTest() {
+                if (!this.testRunning) return;
+                
+                this.testRunning = false;
+                
+                if (this.testInterval) {
+                    clearInterval(this.testInterval);
+                    this.testInterval = null;
+                }
+                
+                document.getElementById('startTest').disabled = false;
+                document.getElementById('stopTest').disabled = true;
+                
+                this.updateTestResult('测试已停止', 'info');
+                this.showNotification('测试已停止', 'info');
+            }
+
+            updateTestResult(message, type = 'info') {
+                const resultDiv = document.getElementById('testResult');
+                const colors = {
+                    success: 'text-green-400',
+                    error: 'text-red-400',
+                    warning: 'text-yellow-400',
+                    info: 'text-gray-400'
+                };
+                
+                resultDiv.innerHTML = `
+                    <div class="flex items-center ${colors[type] || colors.info}">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        ${message}
+                    </div>
+                `;
+            }
+
+            updateConfigStatus(message) {
+                document.getElementById('configStatus').textContent = message;
+            }
+
+            loadDefaultConfig() {
+                this.resetConfig();
+            }
+
+            showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `fixed top-24 right-6 z-50 px-6 py-4 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full`;
+                
+                const styles = {
+                    success: 'bg-green-600 text-white',
+                    error: 'bg-red-600 text-white',
+                    warning: 'bg-yellow-600 text-white',
+                    info: 'bg-blue-600 text-white'
+                };
+                
+                notification.className += ` ${styles[type] || styles.info}`;
+                notification.textContent = message;
+                
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.classList.remove('translate-x-full');
+                }, 100);
+                
+                setTimeout(() => {
+                    notification.classList.add('translate-x-full');
+                    setTimeout(() => {
+                        document.body.removeChild(notification);
+                    }, 300);
+                }, 3000);
+            }
+        }
+
+        // 初始化配置管理器
+        document.addEventListener('DOMContentLoaded', () => {
+            window.configManager = new SerialConfigManager();
+        });
+    </script>
+</body>
+</html>
