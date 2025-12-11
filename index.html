@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>串口调试工具 - Serial Monitor Pro</title>
+    
+    <!-- 核心样式库 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Fira+Code:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/splitting@1.0.6/dist/splitting.css" rel="stylesheet">
+    
+    <!-- 核心JavaScript库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="https://unpkg.com/splitting@1.0.6/dist/splitting.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #0f3460;
+            --text-primary: #f1f2f6;
+            --text-secondary: #ddd;
+            --accent-green: #00ff88;
+            --accent-orange: #ff6b35;
+            --accent-red: #ff4757;
+            --accent-blue: #74b9ff;
+        }
+        
+        body {
+            font-family: 'Fira Code', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+        
+        .title-font {
+            font-family: 'Orbitron', monospace;
+        }
+        
+        .glass-effect {
+            background: rgba(22, 33, 62, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(116, 185, 255, 0.2);
+        }
+        
+        .glow-green {
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+        }
+        
+        .glow-orange {
+            box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+        }
+        
+        .glow-red {
+            box-shadow: 0 0 20px rgba(255, 71, 87, 0.3);
+        }
+        
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .data-stream {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-active { background: var(--accent-green); }
+        .status-warning { background: var(--accent-orange); }
+        .status-error { background: var(--accent-red); }
+        .status-inactive { background: #666; }
+        
+        .tech-bg {
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(116, 185, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(0, 255, 136, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(255, 107, 53, 0.1) 0%, transparent 50%);
+        }
+        
+        .grid-overlay {
+            background-image: 
+                linear-gradient(rgba(116, 185, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(116, 185, 255, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        
+        .scrollable {
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(116, 185, 255, 0.5) transparent;
+        }
+        
+        .scrollable::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .scrollable::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .scrollable::-webkit-scrollbar-thumb {
+            background: rgba(116, 185, 255, 0.5);
+            border-radius: 3px;
+        }
+        
+        .hover-lift {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .hover-lift:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .data-packet {
+            border-left: 3px solid var(--accent-blue);
+            padding-left: 12px;
+            margin: 4px 0;
+            transition: all 0.3s ease;
+        }
+        
+        .data-packet:hover {
+            border-left-color: var(--accent-green);
+            background: rgba(0, 255, 136, 0.05);
+        }
+        
+        .connection-card {
+            background: linear-gradient(135deg, rgba(22, 33, 62, 0.9), rgba(15, 52, 96, 0.9));
+            border: 1px solid rgba(116, 185, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .connection-card:hover {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.2);
+        }
+    </style>
+</head>
+<body class="tech-bg grid-overlay">
+    <!-- 导航栏 -->
+    <nav class="fixed top-0 left-0 right-0 z-50 glass-effect">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <h1 class="title-font text-2xl font-bold text-white">
+                        <span class="text-green-400">Serial</span>Monitor<span class="text-blue-400">Pro</span>
+                    </h1>
+                    <div class="hidden md:flex items-center space-x-2 text-sm">
+                        <span class="status-indicator status-active pulse-animation"></span>
+                        <span>实时监控系统</span>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-6">
+                    <button id="scanPorts" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors hover-lift">
+                        <span class="flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            扫描串口
+                        </span>
+                    </button>
+                    
+                    <button id="connectAll" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors hover-lift">
+                        <span class="flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                            连接全部
+                        </span>
+                    </button>
+                    
+                    <button id="disconnectAll" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors hover-lift">
+                        <span class="flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"></path>
+                            </svg>
+                            断开全部
+                        </span>
+                    </button>
+                    
+                    <div class="flex space-x-2">
+                        <a href="config.html" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors">
+                            配置
+                        </a>
+                        <a href="analysis.html" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">
+                            分析
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区域 -->
+    <div class="pt-20 min-h-screen">
+        <div class="container mx-auto px-6">
+            <!-- 状态概览 -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="glass-effect rounded-lg p-6 hover-lift">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-400 text-sm">检测到串口</p>
+                            <p id="portCount" class="text-3xl font-bold text-blue-400">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-effect rounded-lg p-6 hover-lift">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-400 text-sm">活跃连接</p>
+                            <p id="activeConnections" class="text-3xl font-bold text-green-400">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-effect rounded-lg p-6 hover-lift">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-400 text-sm">数据速率</p>
+                            <p id="dataRate" class="text-3xl font-bold text-orange-400">0 B/s</p>
+                        </div>
+                        <div class="w-12 h-12 bg-orange-600 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-effect rounded-lg p-6 hover-lift">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-400 text-sm">错误率</p>
+                            <p id="errorRate" class="text-3xl font-bold text-red-400">0%</p>
+                        </div>
+                        <div class="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主要内容区域 -->
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <!-- 左侧面板 - 串口列表 -->
+                <div class="lg:col-span-1">
+                    <div class="glass-effect rounded-lg p-6">
+                        <h3 class="title-font text-lg font-bold mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"></path>
+                            </svg>
+                            串口列表
+                        </h3>
+                        
+                        <div id="portList" class="space-y-3 scrollable" style="max-height: 400px;">
+                            <!-- 串口列表将在这里动态生成 -->
+                            <div class="text-center text-gray-400 py-8">
+                                <svg class="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                </svg>
+                                <p>点击"扫描串口"开始检测</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 中央区域 - 数据监控 -->
+                <div class="lg:col-span-2">
+                    <div class="glass-effect rounded-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="title-font text-lg font-bold flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                                实时数据监控
+                            </h3>
+                            
+                            <div class="flex items-center space-x-2">
+                                <button id="clearData" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm transition-colors">
+                                    清空
+                                </button>
+                                <select id="dataFormat" class="px-3 py-1 bg-gray-700 border border-gray-600 rounded text-sm">
+                                    <option value="text">文本模式</option>
+                                    <option value="hex">十六进制</option>
+                                    <option value="binary">二进制</option>
+                                </select>
+                                <button id="pauseStream" class="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded text-sm transition-colors">
+                                    暂停
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="dataMonitor" class="bg-black rounded-lg p-4 font-mono text-sm scrollable" style="height: 400px; font-size: 11px;">
+                            <div class="text-gray-500 text-center py-8">
+                                <svg class="w-16 h-16 mx-auto mb-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                                </svg>
+                                <p>等待串口连接...</p>
+                                <p class="text-xs mt-2">连接串口后将在此显示实时数据</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧面板 - 统计信息 -->
+                <div class="lg:col-span-1">
+                    <div class="space-y-6">
+                        <!-- 实时图表 -->
+                        <div class="glass-effect rounded-lg p-6">
+                            <h3 class="title-font text-lg font-bold mb-4 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
+                                </svg>
+                                数据流量
+                            </h3>
+                            <div id="trafficChart" style="height: 200px;"></div>
+                        </div>
+                        
+                        <!-- 快速配置 -->
+                        <div class="glass-effect rounded-lg p-6">
+                            <h3 class="title-font text-lg font-bold mb-4 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                                快速配置
+                            </h3>
+                            
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-sm text-gray-400 mb-1">波特率</label>
+                                    <select id="quickBaudRate" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm">
+                                        <option value="9600">9600</option>
+                                        <option value="19200">19200</option>
+                                        <option value="38400">38400</option>
+                                        <option value="57600">57600</option>
+                                        <option value="115200" selected>115200</option>
+                                        <option value="230400">230400</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm text-gray-400 mb-1">数据位</label>
+                                    <select id="quickDataBits" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm">
+                                        <option value="7">7</option>
+                                        <option value="8" selected>8</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm text-gray-400 mb-1">停止位</label>
+                                    <select id="quickStopBits" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm">
+                                        <option value="1" selected>1</option>
+                                        <option value="2">2</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm text-gray-400 mb-1">校验位</label>
+                                    <select id="quickParity" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm">
+                                        <option value="none" selected>无</option>
+                                        <option value="even">偶校验</option>
+                                        <option value="odd">奇校验</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部状态栏 -->
+    <footer class="fixed bottom-0 left-0 right-0 glass-effect border-t border-gray-700">
+        <div class="container mx-auto px-6 py-3">
+            <div class="flex items-center justify-between text-sm">
+                <div class="flex items-center space-x-4">
+                    <span class="flex items-center">
+                        <span class="status-indicator status-active pulse-animation"></span>
+                        <span id="systemStatus">系统正常运行</span>
+                    </span>
+                    <span class="text-gray-400">|</span>
+                    <span>最后更新: <span id="lastUpdate">--:--:--</span></span>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <span class="text-gray-400">版本: v1.0.0</span>
+                    <span class="text-gray-400">|</span>
+                    <span id="memoryUsage">内存: 0 MB</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 加载主要JavaScript文件 -->
+    <script src="main.js"></script>
+</body>
+</html>
