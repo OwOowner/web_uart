@@ -4,17 +4,27 @@
  */
 
 class SerialMonitorPro {
+        // 市面常见波特率（优先检测）
+        static COMMON_BAUD_RATES_PRIOR = [
+            115200, 9600, 57600, 38400, 19200, 4800, 2400, 1200, 230400, 460800, 921600, 256000, 128000, 76800, 14400, 31250
+        ];
+        // 不常见波特率（后检测）
+        static COMMON_BAUD_RATES_EXTRA = [
+            3000000, 2000000, 1500000, 1000000, 7200, 1800, 600, 300
+        ];
+
     constructor() {
         this.ports = new Map();
         this.activeConnections = new Set();
         this.dataBuffer = new Map();
-        this.isMonitoring = false;
+        this.readers = new Map(); // 保存每个端口的reader
+        this.isMonitoring = true;
         this.trafficChart = null;
         this.dataRate = 0;
         this.errorCount = 0;
         this.totalData = 0;
         this.lastUpdateTime = Date.now();
-        
+        this.maxBufferLength = 10000; // 数据显示最大长度
         this.init();
     }
 
@@ -40,6 +50,12 @@ class SerialMonitorPro {
         document.getElementById('scanPorts').addEventListener('click', () => this.scanPorts());
         document.getElementById('connectAll').addEventListener('click', () => this.connectAllPorts());
         document.getElementById('disconnectAll').addEventListener('click', () => this.disconnectAllPorts());
+
+        // 自动波特率检测按钮
+        const autoBaudBtn = document.getElementById('autoBaudDetect');
+        if (autoBaudBtn) {
+            autoBaudBtn.addEventListener('click', () => this.handleAutoBaudDetect());
+        }
         
         // 数据监控控制
         document.getElementById('clearData').addEventListener('click', () => this.clearMonitor());
@@ -62,17 +78,23 @@ class SerialMonitorPro {
         try {
             this.showNotification('正在扫描串口...', 'info');
 
-            // 获取已授权的串口
-            let ports = await navigator.serial.getPorts();
-
-            // 如果没有已授权设备，主动请求用户授权
-            if (ports.length === 0) {
-                try {
-                    const port = await navigator.serial.requestPort();
-                    ports = [port];
-                } catch (e) {
+            // 始终主动弹出权限申请
+            let ports = [];
+            try {
+                const port = await navigator.serial.requestPort();
+                ports = [port];
+            } catch (e) {
+                // 用户拒绝授权时，依然尝试获取已授权的串口
+                ports = await navigator.serial.getPorts();
+                if (ports.length === 0) {
                     this.showNotification('用户未授权串口访问', 'warning');
                 }
+            }
+
+            // 及时更新this.ports
+            this.ports.clear();
+            for (const port of ports) {
+                this.ports.set(port, await this.getPortInfo(port));
             }
 
             // 更新串口列表显示
@@ -156,11 +178,30 @@ class SerialMonitorPro {
     async getPortInfo(port) {
         try {
             const info = await port.getInfo();
+            // 优先用真实端口名
+            let name = info.usbProductName || info.serialNumber || info.path || '';
+            if (!name) {
+                // 浏览器无法获取真实端口名时，尝试用VID/PID
+                if (info.usbVendorId && info.usbProductId) {
+                    name = `VID:${info.usbVendorId} PID:${info.usbProductId}`;
+                } else {
+                    name = '未知串口';
+                }
+            }
+            // 获取当前端口的波特率（如果已连接）
+            let baudRate = undefined;
+            if (this.activeConnections.has(port) && port.baudRate) {
+                baudRate = port.baudRate;
+            } else {
+                // 尝试从配置获取
+                const baudSelect = document.getElementById('quickBaudRate');
+                baudRate = baudSelect ? baudSelect.value : 115200;
+            }
             return {
-                name: info.usbProductName || `COM${Math.random().toString(36).substr(2, 3)}`,
+                name,
                 vendorId: info.usbVendorId,
                 productId: info.usbProductId,
-                baudRate: 115200 // 默认波特率
+                baudRate
             };
         } catch (error) {
             console.warn('获取串口信息失败:', error);
@@ -168,6 +209,138 @@ class SerialMonitorPro {
                 name: '未知串口',
                 baudRate: 115200
             };
+        }
+    }
+
+    // 自动波特率检测入口
+    async handleAutoBaudDetect() {
+        try {
+            this.showNotification('请授权串口设备...', 'info');
+            let port;
+            try {
+                port = await navigator.serial.requestPort();
+            } catch (e) {
+                this.showNotification('用户未授权串口访问', 'warning');
+                return;
+            }
+            this.showNotification('开始自动检测波特率...', 'info');
+            const {baud, sample} = await this.autoDetectBaudRate(port);
+            if (baud) {
+                this.showNotification(`检测到波特率：${baud} bps`, 'success');
+                // 自动连接并设置波特率
+                const baudSelect = document.getElementById('quickBaudRate');
+                if (baudSelect) {
+                    let found = false;
+                    for (let opt of baudSelect.options) {
+                        if (parseInt(opt.value) === baud) { opt.selected = true; found = true; break; }
+                    }
+                    if (!found) {
+                        // 动态添加并选中
+                        const newOpt = document.createElement('option');
+                        newOpt.value = baud;
+                        newOpt.text = baud + ' (自动检测)';
+                        newOpt.selected = true;
+                        baudSelect.appendChild(newOpt);
+                    }
+                }
+                await this.connectPortWithBaud(port, baud);
+                await this.scanPorts();
+                // 高亮显示检测到的数据样本
+                if (sample && sample.length > 0) {
+                    this.showNotification('数据样本: ' + this.formatSampleData(sample), 'info');
+                }
+            } else {
+                this.showNotification('未能检测到有效波特率', 'error');
+            }
+        } catch (err) {
+            this.showNotification('自动波特率检测失败: ' + err.message, 'error');
+        }
+    }
+
+    // 自动检测波特率主逻辑
+    async autoDetectBaudRate(port) {
+        // 先检测常见波特率
+        let result = await this._tryBaudList(port, SerialMonitorPro.COMMON_BAUD_RATES_PRIOR);
+        if (result.baud) return result;
+        // 再检测不常见波特率
+        return await this._tryBaudList(port, SerialMonitorPro.COMMON_BAUD_RATES_EXTRA);
+    }
+
+    async _tryBaudList(port, baudList) {
+        for (const baudRate of baudList) {
+            try {
+                await port.open({
+                    baudRate,
+                    dataBits: 8,
+                    stopBits: 1,
+                    parity: 'none',
+                    flowControl: 'none'
+                });
+                const reader = port.readable.getReader();
+                // 读取多次，增加鲁棒性
+                let valid = false;
+                let sample = null;
+                for (let i = 0; i < 3; i++) {
+                    const { value, done } = await Promise.race([
+                        reader.read(),
+                        new Promise(resolve => setTimeout(() => resolve({ value: null, done: true }), 200))
+                    ]);
+                    if (value && value.length > 0 && this.isLikelyValidData(value)) {
+                        valid = true;
+                        sample = value;
+                        break;
+                    }
+                }
+                reader.releaseLock();
+                await port.close();
+                if (valid) {
+                    return { baud: baudRate, sample };
+                }
+            } catch (e) {
+                try { await port.close(); } catch {}
+            }
+        }
+        return { baud: null, sample: null };
+    }
+    // 格式化数据样本为可读字符串
+    formatSampleData(data) {
+        if (!data || data.length === 0) return '';
+        let str = '';
+        for (let b of data.slice(0, 16)) {
+            if (b >= 32 && b <= 126) str += String.fromCharCode(b);
+            else str += '.';
+        }
+        return str + (data.length > 16 ? ' ...' : '');
+    }
+
+    // 简单判断数据是否有效（可根据实际协议优化）
+    isLikelyValidData(data) {
+        // 判断是否有较多可见字符
+        let visible = 0;
+        for (let b of data) {
+            if (b >= 32 && b <= 126) visible++;
+        }
+        return visible >= Math.max(2, data.length / 3);
+    }
+
+    // 用指定波特率连接端口
+    async connectPortWithBaud(port, baudRate) {
+        try {
+            await port.open({
+                baudRate,
+                dataBits: 8,
+                stopBits: 1,
+                parity: 'none',
+                flowControl: 'none'
+            });
+            this.activeConnections.add(port);
+            this.dataBuffer.set(port, []);
+            this.showNotification(`串口连接成功 (${baudRate}bps)`, 'success');
+            this.startReadingPort(port);
+            return true;
+        } catch (error) {
+            this.showNotification('串口连接失败: ' + error.message, 'error');
+            return false;
         }
     }
 
@@ -208,7 +381,9 @@ class SerialMonitorPro {
 
             this.activeConnections.add(port);
             this.dataBuffer.set(port, []);
-            
+            // 连接后刷新this.ports
+            this.ports.set(port, await this.getPortInfo(port));
+
             this.showNotification(`串口连接成功 (${baudRate}bps)`, 'success');
             this.startReadingPort(port);
             
@@ -223,9 +398,18 @@ class SerialMonitorPro {
 
     async disconnectPort(port) {
         try {
+            // 先取消reader
+            if (this.readers.has(port)) {
+                try {
+                    await this.readers.get(port).cancel();
+                } catch {}
+                this.readers.delete(port);
+            }
             await port.close();
             this.activeConnections.delete(port);
             this.dataBuffer.delete(port);
+            // 断开后刷新this.ports
+            this.ports.set(port, await this.getPortInfo(port));
             this.showNotification('串口已断开', 'info');
         } catch (error) {
             console.error('断开串口失败:', error);
@@ -273,43 +457,43 @@ class SerialMonitorPro {
 
     async startReadingPort(port) {
         if (!port.readable) return;
-        
         const reader = port.readable.getReader();
+        this.readers.set(port, reader);
         const buffer = this.dataBuffer.get(port) || [];
-        
         try {
             while (this.activeConnections.has(port)) {
+                if (!this.isMonitoring) {
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    continue;
+                }
                 const { value, done } = await reader.read();
-                
                 if (done) break;
-                
                 if (value) {
                     buffer.push(...value);
                     this.totalData += value.length;
-                    
                     // 限制缓冲区大小
-                    if (buffer.length > 10000) {
-                        buffer.splice(0, buffer.length - 10000);
+                    if (buffer.length > this.maxBufferLength) {
+                        buffer.splice(0, buffer.length - this.maxBufferLength);
                     }
-                    
-                    // 更新显示
                     this.updateMonitorDisplay();
                     this.updateTrafficChart();
                 }
             }
         } catch (error) {
-            console.error('读取串口数据失败:', error);
-            this.errorCount++;
-            this.showNotification('串口数据读取错误: ' + error.message, 'error');
+            if (error && error.name !== 'AbortError') {
+                console.error('读取串口数据失败:', error);
+                this.errorCount++;
+                this.showNotification('串口数据读取错误: ' + error.message, 'error');
+            }
         } finally {
             reader.releaseLock();
+            this.readers.delete(port);
         }
     }
 
     updateMonitorDisplay() {
         const monitor = document.getElementById('dataMonitor');
         const format = document.getElementById('dataFormat').value;
-        
         if (this.activeConnections.size === 0) {
             monitor.innerHTML = `
                 <div class="text-gray-500 text-center py-8">
@@ -322,32 +506,28 @@ class SerialMonitorPro {
             `;
             return;
         }
-        
         let html = '';
         let totalPackets = 0;
-        
         for (const [port, data] of this.dataBuffer) {
             if (data.length === 0) continue;
-            
             totalPackets++;
             const portInfo = this.ports.get(port) || { name: '未知串口' };
             const timestamp = new Date().toLocaleTimeString();
-            
             let formattedData = '';
+            let showLen = Math.min(data.length, this.maxBufferLength);
             switch (format) {
                 case 'hex':
-                    formattedData = data.slice(-50).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+                    formattedData = data.slice(-showLen).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
                     break;
                 case 'binary':
-                    formattedData = data.slice(-50).map(b => b.toString(2).padStart(8, '0')).join(' ');
+                    formattedData = data.slice(-showLen).map(b => b.toString(2).padStart(8, '0')).join(' ');
                     break;
                 default:
-                    formattedData = data.slice(-50).map(b => {
+                    formattedData = data.slice(-showLen).map(b => {
                         const char = String.fromCharCode(b);
                         return b >= 32 && b <= 126 ? char : '.';
                     }).join('');
             }
-            
             html += `
                 <div class="data-packet mb-2">
                     <div class="flex items-center justify-between text-xs text-gray-400 mb-1">
@@ -358,7 +538,6 @@ class SerialMonitorPro {
                 </div>
             `;
         }
-        
         if (html === '') {
             html = `
                 <div class="text-gray-500 text-center py-4">
@@ -366,10 +545,7 @@ class SerialMonitorPro {
                 </div>
             `;
         }
-        
         monitor.innerHTML = html;
-        
-        // 自动滚动到底部
         monitor.scrollTop = monitor.scrollHeight;
     }
 
@@ -592,8 +768,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // 页面卸载时清理
-window.addEventListener('beforeunload', () => {
+window.addEventListener('beforeunload', async () => {
     if (window.serialMonitor) {
-        window.serialMonitor.disconnectAllPorts();
+        for (const port of Array.from(window.serialMonitor.activeConnections)) {
+            await window.serialMonitor.disconnectPort(port);
+        }
     }
 });

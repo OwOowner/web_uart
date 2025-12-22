@@ -273,7 +273,63 @@
 
             <!-- 主要内容区域 -->
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <!-- 左侧面板 - 串口列表 -->
+                <!-- 左侧面板 - 快速配置 -->
+                <div class="lg:col-span-1">
+                    <div class="glass-effect rounded-lg p-6">
+                        <h3 class="title-font text-lg font-bold mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            快速配置
+                        </h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">波特率</label>
+                                <select id="quickBaudRate" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm">
+                                    <option value="9600">9600</option>
+                                    <option value="19200">19200</option>
+                                    <option value="38400">38400</option>
+                                    <option value="57600">57600</option>
+                                    <option value="115200" selected>115200</option>
+                                    <option value="230400">230400</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">数据位</label>
+                                <select id="quickDataBits" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm">
+                                    <option value="7">7</option>
+                                    <option value="8" selected>8</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">停止位</label>
+                                <select id="quickStopBits" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm">
+                                    <option value="1" selected>1</option>
+                                    <option value="2">2</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">校验位</label>
+                                <select id="quickParity" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm">
+                                    <option value="none" selected>无</option>
+                                    <option value="even">偶校验</option>
+                                    <option value="odd">奇校验</option>
+                                </select>
+                            </div>
+                            <div>
+                                <button id="autoBaudDetect" class="w-full mt-3 px-4 py-2 bg-blue-500 hover:bg-blue-700 text-white rounded-lg font-bold transition-colors">
+                                    <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                    </svg>
+                                    自动检测波特率
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 串口列表 -->
                 <div class="lg:col-span-1">
                     <div class="glass-effect rounded-lg p-6">
                         <h3 class="title-font text-lg font-bold mb-4 flex items-center">
@@ -282,7 +338,6 @@
                             </svg>
                             串口列表
                         </h3>
-                        
                         <div id="portList" class="space-y-3 scrollable" style="max-height: 400px;">
                             <!-- 串口列表将在这里动态生成 -->
                             <div class="text-center text-gray-400 py-8">
@@ -345,56 +400,6 @@
                                 数据流量
                             </h3>
                             <div id="trafficChart" style="height: 200px;"></div>
-                        </div>
-                        
-                        <!-- 快速配置 -->
-                        <div class="glass-effect rounded-lg p-6">
-                            <h3 class="title-font text-lg font-bold mb-4 flex items-center">
-                                <svg class="w-5 h-5 mr-2 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                </svg>
-                                快速配置
-                            </h3>
-                            
-                            <div class="space-y-3">
-                                <div>
-                                    <label class="block text-sm text-gray-400 mb-1">波特率</label>
-                                    <select id="quickBaudRate" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm">
-                                        <option value="9600">9600</option>
-                                        <option value="19200">19200</option>
-                                        <option value="38400">38400</option>
-                                        <option value="57600">57600</option>
-                                        <option value="115200" selected>115200</option>
-                                        <option value="230400">230400</option>
-                                    </select>
-                                </div>
-                                
-                                <div>
-                                    <label class="block text-sm text-gray-400 mb-1">数据位</label>
-                                    <select id="quickDataBits" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm">
-                                        <option value="7">7</option>
-                                        <option value="8" selected>8</option>
-                                    </select>
-                                </div>
-                                
-                                <div>
-                                    <label class="block text-sm text-gray-400 mb-1">停止位</label>
-                                    <select id="quickStopBits" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm">
-                                        <option value="1" selected>1</option>
-                                        <option value="2">2</option>
-                                    </select>
-                                </div>
-                                
-                                <div>
-                                    <label class="block text-sm text-gray-400 mb-1">校验位</label>
-                                    <select id="quickParity" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm">
-                                        <option value="none" selected>无</option>
-                                        <option value="even">偶校验</option>
-                                        <option value="odd">奇校验</option>
-                                    </select>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
